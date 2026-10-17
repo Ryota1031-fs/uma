@@ -113,7 +113,7 @@ venues = sorted({r[8:10] for r in all_races})
 c1, c2, c3 = st.columns([2, 2, 3])
 venue = c1.selectbox("競馬場", venues, format_func=lambda v: VENUES.get(v, v))
 races = [r for r in all_races if r[8:10] == venue]
-rid = c2.selectbox("レース", races, format_func=lambda r: f"{int(r[14:16])}R")
+rid = c2.selectbox("レース", races, format_func=lambda r: f"{int(r[14:16])}R", key=f"race_{race_date}_{venue}")
 models = available_models()
 model_name = c3.radio("予想に使うモデル", models, horizontal=True,
                       help="LightGBM は過去のレースから学んだ予想です。「オッズあり」は締切前のオッズも材料にします。"
