@@ -46,6 +46,8 @@ CSS = """
 .boats td:last-child { border-right: 1px solid var(--line); border-radius: 0 12px 12px 0; }
 .boats tr.top td { background: #f1faf3; }
 .name { font-weight: 700; font-size: .98rem; }
+a.name { color: var(--ink); text-decoration: none; border-bottom: 1px dashed var(--accent); }
+a.name:hover { color: var(--accent); }
 .sub { color: var(--muted); font-size: .75rem; }
 .cls { display: inline-block; border-radius: 6px; padding: 1px 7px; font-size: .72rem; font-weight: 700; margin-left: 6px; background: #eef0f3; color: #4b5563; }
 .cls.fav { background: #fde7e9; color: #c0182b; }
@@ -105,6 +107,15 @@ def _fmt(v, f: str, dash: str = "－") -> str:
     return format(v, f) if pd.notna(v) else dash
 
 
+def _horse_name(r) -> str:
+    name = html.escape(str(r["horse"]))
+    url = r.get("horse_url")
+    if isinstance(url, str) and url:
+        return (f'<a class="name" href="{html.escape(url)}" target="_blank" rel="noopener" '
+                f'title="JRA公式の競走馬情報（過去の成績）を開く">{name} ↗</a>')
+    return f'<span class="name">{name}</span>'
+
+
 def horses_table(g: pd.DataFrame, prob_col: str) -> str:
     best = g[prob_col].idxmax()
     rows = []
@@ -122,7 +133,7 @@ def horses_table(g: pd.DataFrame, prob_col: str) -> str:
         rows.append(
             f'<tr class="{"top" if i == best else ""}">'
             f'<td>{chip(r["num"], r.get("waku"), True)}</td>'
-            f'<td><span class="name">{html.escape(str(r["horse"]))}</span><span class="cls{fav}">{odds}</span>'
+            f'<td>{_horse_name(r)}<span class="cls{fav}">{odds}</span>'
             f'<div class="sub">{html.escape(str(r["sex"]))}{_fmt(r.get("age"), ".0f")}・{_fmt(r.get("carried"), ".1f")}kg・{bw}</div></td>'
             f'<td>{html.escape(str(r["jockey"]))}<div class="sub">勝率 {r["j_win_rate"]:.0%}・{pop}</div></td>'
             f'<td>{form}<div class="sub">{last}</div></td>'

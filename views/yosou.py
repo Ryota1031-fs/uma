@@ -72,14 +72,27 @@ with st.sidebar:
             st.error(f"更新できませんでした: {e}")
 
 
+def _models_stamp() -> float:
+    """models/ の更新時刻。Web版は更新しても起動しっぱなしのことがあるので、これが変わったら読み直す。"""
+    return max((p.stat().st_mtime for p in (ROOT / "models").glob("*")), default=0.0)
+
+
 @st.cache_resource
-def cached_model(name: str):
+def _cached_model(name: str, stamp: float):
     return load_model(name)
 
 
 @st.cache_data(show_spinner=False)
-def cached_history() -> pd.DataFrame:
+def _cached_history(stamp: float) -> pd.DataFrame:
     return load_history()
+
+
+def cached_model(name: str):
+    return _cached_model(name, _models_stamp())
+
+
+def cached_history() -> pd.DataFrame:
+    return _cached_history(_models_stamp())
 
 
 @st.cache_data(ttl=600, show_spinner=False)

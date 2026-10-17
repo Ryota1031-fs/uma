@@ -75,6 +75,12 @@ def _grade(head) -> str:
     return img.get("alt", "") if img else ""
 
 
+def _href(a) -> str:
+    """馬名のリンク（JRA公式の競走馬情報ページ）。"""
+    h = a.get("href", "") if a is not None else ""
+    return f"https://www.jra.go.jp{h}" if h.startswith("/JRADB/") else ""
+
+
 def _sex_age(s: str) -> tuple[str, int | None]:
     m = re.match(r"(牡|牝|セ|せん)(\d+)", s)
     return (m.group(1)[0], int(m.group(2))) if m else ("", None)
@@ -118,6 +124,7 @@ def parse_result(html: str, rid: str) -> tuple[dict, list[dict], dict[str, dict[
             "num": int(num),
             "horse": _text(horse_a),
             "horse_id": _id(horse_a, r"pw01dud\d\d"),
+            "horse_url": _href(horse_a),
             "sex": sex,
             "age": age,
             "carried": _num(_text(tr.select_one("td.weight"))),
@@ -189,6 +196,7 @@ def parse_entries(html: str, rid: str) -> tuple[dict, list[dict]]:
             "num": int(num),
             "horse": _text(horse_a),
             "horse_id": _id(horse_a, r"pw01dud\d\d"),
+            "horse_url": _href(horse_a),
             "sex": sex,
             "age": age,
             "carried": _num(_text(tr.select_one("td.jockey p.weight"))),
