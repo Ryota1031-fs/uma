@@ -90,6 +90,51 @@ class GBMModel:
         return m
 
 
+class BlendModel:
+    """オッズ（世の中の見立て）と、オッズを使わない LightGBM の確率を掛け合わせる。
+
+    p ∝ オッズの確率^a × LightGBM の確率^b。a と b は、学習に使っていない期間で一番当てはまる値を選ぶ。
+    オッズが市場の情報を、LightGBM が過去成績の情報を持つので、両方を足し合わせる形になる。
+    """
+    name = "オッズ＋LightGBM"
+
+    def __init__(self, gbm: "GBMModel | None" = None, a: float = 1.0, b: float = 0.3):
+        self.gbm, self.a, self.b = gbm, a, b
+
+    def _parts(self, df: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
+        g = np.clip(self.gbm.predict(df).to_numpy(), 1e-6, 1)
+        o = df["odds_prob"].to_numpy(dtype=float)
+        o = np.where(np.isnan(o), g, np.clip(o, 1e-6, 1))  # オッズがない馬は LightGBM だけで見る
+        return np.log(o), np.log(g)
+
+    def _combine(self, df: pd.DataFrame, lo: np.ndarray, lg: np.ndarray, a: float, b: float) -> pd.Series:
+        z = pd.Series(a * lo + b * lg, index=df.index)
+        z = z - z.groupby(df[RACE_KEY]).transform("max")
+        return normalize_in_race(df, np.exp(z))
+
+    def fit(self, df: pd.DataFrame, valid_ratio: float = 0.25) -> "BlendModel":
+        d = df[df["position"].notna()]
+        dates = sorted(d["date"].unique())
+        cut = dates[int(len(dates) * (1 - valid_ratio))]
+        tr, va = d[d["date"] < cut], d[d["date"] >= cut]
+        self.gbm = GBMModel(use_odds=False).fit(tr)
+        lo, lg = self._parts(va)
+        won = (va["position"] == 1).to_numpy()
+        best = (-np.inf, 1.0, 0.0)
+        for a in np.linspace(0.6, 1.4, 9):
+            for b in np.linspace(0, 1.0, 11):
+                ll = np.log(np.clip(self._combine(va, lo, lg, a, b).to_numpy()[won], 1e-9, 1)).mean()
+                if ll > best[0]:
+                    best = (ll, float(a), float(b))
+        _, self.a, self.b = best
+        self.gbm = GBMModel(use_odds=False).fit(d)  # 重みが決まったら全期間で学び直す
+        return self
+
+    def predict(self, df: pd.DataFrame) -> pd.Series:
+        lo, lg = self._parts(df)
+        return self._combine(df, lo, lg, self.a, self.b)
+
+
 def _key(nums) -> str:
     return "-".join(str(n) for n in nums)
 

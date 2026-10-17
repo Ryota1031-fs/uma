@@ -14,7 +14,7 @@ import pandas as pd
 
 from .dataset import build
 from .features import RACE_KEY, add_features
-from .model import TICKET_TYPES, GBMModel, MarketModel, ticket_probs
+from .model import TICKET_TYPES, BlendModel, GBMModel, MarketModel, ticket_probs
 
 ROOT = Path(__file__).resolve().parent.parent
 MODELS = ROOT / "models"
@@ -88,7 +88,9 @@ def main() -> None:
     print(f"学習 {train['date'].nunique()}日 / 検証 {test['date'].nunique()}日（{cut} 以降）、"
           f"検証レース数 {test[RACE_KEY].nunique()}")
 
-    models = [MarketModel(), GBMModel(use_odds=False).fit(train), GBMModel(use_odds=True).fit(train)]
+    blend = BlendModel().fit(train)
+    print(f"オッズ＋LightGBM の重み: オッズ {blend.a:.2f}、LightGBM {blend.b:.2f}")
+    models = [MarketModel(), GBMModel(use_odds=False).fit(train), GBMModel(use_odds=True).fit(train), blend]
     summary = {}
     won = (test["position"] == 1).to_numpy()
     for m in models:
@@ -115,6 +117,9 @@ def main() -> None:
     # 画面で使うモデルは全期間で学び直して保存する
     GBMModel(use_odds=False).fit(df).save(MODELS / "gbm.txt")
     GBMModel(use_odds=True).fit(df).save(MODELS / "gbm_odds.txt")
+    full = BlendModel().fit(df)
+    full.gbm.save(MODELS / "gbm_blend.txt")
+    (MODELS / "blend.json").write_text(json.dumps({"a": full.a, "b": full.b}))
     (MODELS / "backtest.json").write_text(json.dumps(
         {"cut": cut, "test_races": int(test[RACE_KEY].nunique()), "top": a.top, "models": summary},
         ensure_ascii=False, indent=1, default=float))

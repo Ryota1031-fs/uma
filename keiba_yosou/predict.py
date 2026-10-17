@@ -10,7 +10,7 @@ import pandas as pd
 from .backtest import HISTORY_COLS, MODELS
 from .dataset import TABLE_DIR
 from .features import add_features
-from .model import GBMModel, MarketModel
+from .model import BlendModel, GBMModel, MarketModel
 
 MODEL_FILES = {"LightGBM（オッズあり）": "gbm_odds.txt", "LightGBM（オッズなし）": "gbm.txt"}
 
@@ -18,6 +18,8 @@ MODEL_FILES = {"LightGBM（オッズあり）": "gbm_odds.txt", "LightGBM（オ�
 def available_models() -> list[str]:
     """使えるモデルを、過去データでの当てはまりが良い順に返す（先頭が画面の初期値）。"""
     names = [n for n, f in MODEL_FILES.items() if (MODELS / f).exists()] + ["オッズどおり"]
+    if (MODELS / "blend.json").exists():
+        names.append(BlendModel.name)
     try:
         scores = json.loads((MODELS / "backtest.json").read_text(encoding="utf-8"))["models"]
         names.sort(key=lambda n: -scores.get(n, {}).get("logloss", -99))
@@ -29,6 +31,9 @@ def available_models() -> list[str]:
 def load_model(name: str):
     if name == "オッズどおり":
         return MarketModel()
+    if name == BlendModel.name:
+        w = json.loads((MODELS / "blend.json").read_text())
+        return BlendModel(GBMModel.load(MODELS / "gbm_blend.txt"), w["a"], w["b"])
     return GBMModel.load(MODELS / MODEL_FILES[name])
 
 
