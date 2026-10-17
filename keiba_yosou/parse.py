@@ -81,6 +81,12 @@ def _href(a) -> str:
     return f"https://www.jra.go.jp{h}" if h.startswith("/JRADB/") else ""
 
 
+def _cname(a, prefix: str) -> str:
+    """onclick の doAction(...) に書かれた cname（騎手のページなど、POST でしか開けないページ用）。"""
+    m = re.search(r"(" + prefix + r"[0-9A-Za-z]+/[0-9A-F]{2})", (a.get("onclick") or "") if a is not None else "")
+    return m.group(1) if m else ""
+
+
 def _sex_age(s: str) -> tuple[str, int | None]:
     m = re.match(r"(牡|牝|セ|せん)(\d+)", s)
     return (m.group(1)[0], int(m.group(2))) if m else ("", None)
@@ -130,6 +136,7 @@ def parse_result(html: str, rid: str) -> tuple[dict, list[dict], dict[str, dict[
             "carried": _num(_text(tr.select_one("td.weight"))),
             "jockey": _text(tr.select_one("td.jockey")),
             "jockey_id": _id(tr.select_one("td.jockey a"), "pw04kmk00") or _text(tr.select_one("td.jockey")),
+            "jockey_cname": _cname(tr.select_one("td.jockey a"), "pw04kmk"),
             "time": _time_sec(_text(tr.select_one("td.time"))),
             "last3f": _num(_text(tr.select_one("td.f_time"))),
             "corner_last": corners[-1] if corners else None,
@@ -202,6 +209,7 @@ def parse_entries(html: str, rid: str) -> tuple[dict, list[dict]]:
             "carried": _num(_text(tr.select_one("td.jockey p.weight"))),
             "jockey": _text(jockey_p),
             "jockey_id": _id(jockey_p.select_one("a") if jockey_p else None, "pw04kmk00") or _text(jockey_p),
+            "jockey_cname": _cname(jockey_p.select_one("a") if jockey_p else None, "pw04kmk"),
             "body_weight": bw,
             "body_weight_diff": bw_diff,
             "trainer": _text(trainer_p.select_one("a")) if trainer_p else "",

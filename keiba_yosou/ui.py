@@ -48,6 +48,9 @@ CSS = """
 .name { font-weight: 700; font-size: .98rem; }
 a.name { color: var(--ink); text-decoration: none; border-bottom: 1px dashed var(--accent); }
 a.name:hover { color: var(--accent); }
+form.jlink { display: inline; margin: 0; }
+form.jlink button { background: none; border: none; padding: 0; font: inherit; color: var(--ink); cursor: pointer; border-bottom: 1px dashed var(--accent); }
+form.jlink button:hover { color: var(--accent); }
 .sub { color: var(--muted); font-size: .75rem; }
 .cls { display: inline-block; border-radius: 6px; padding: 1px 7px; font-size: .72rem; font-weight: 700; margin-left: 6px; background: #eef0f3; color: #4b5563; }
 .cls.fav { background: #fde7e9; color: #c0182b; }
@@ -116,6 +119,17 @@ def _horse_name(r) -> str:
     return f'<span class="name">{name}</span>'
 
 
+def _jockey_name(r) -> str:
+    """騎手のページは POST でしか開けないので、小さなフォームのボタンにする。"""
+    name = html.escape(str(r["jockey"]))
+    c = r.get("jockey_cname")
+    if isinstance(c, str) and c:
+        return (f'<form class="jlink" action="https://www.jra.go.jp/JRADB/accessK.html" method="post" target="_blank">'
+                f'<input type="hidden" name="cname" value="{html.escape(c)}">'
+                f'<button type="submit" title="JRA公式の騎手のページ（成績）を開く">{name} ↗</button></form>')
+    return name
+
+
 def horses_table(g: pd.DataFrame, prob_col: str) -> str:
     best = g[prob_col].idxmax()
     rows = []
@@ -135,7 +149,7 @@ def horses_table(g: pd.DataFrame, prob_col: str) -> str:
             f'<td>{chip(r["num"], r.get("waku"), True)}</td>'
             f'<td>{_horse_name(r)}<span class="cls{fav}">{odds}</span>'
             f'<div class="sub">{html.escape(str(r["sex"]))}{_fmt(r.get("age"), ".0f")}・{_fmt(r.get("carried"), ".1f")}kg・{bw}</div></td>'
-            f'<td>{html.escape(str(r["jockey"]))}<div class="sub">勝率 {r["j_win_rate"]:.0%}・{pop}</div></td>'
+            f'<td>{_jockey_name(r)}<div class="sub">勝率 {r["j_win_rate"]:.0%}・{pop}</div></td>'
             f'<td>{form}<div class="sub">{last}</div></td>'
             f'<td style="width:30%"><div style="display:flex;align-items:center;gap:10px">'
             f'<div class="bar" style="flex:1"><span style="width:{min(p * 100 * 2, 100):.1f}%"></span></div>'
