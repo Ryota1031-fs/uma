@@ -161,15 +161,17 @@ odds_store = st.session_state.setdefault("odds", {})
 is_live = rid in entry_map and not race_done
 b1, b2, _ = st.columns([1, 1, 2])
 discord_slot = b2.empty()  # 「Discordに送る」は買い目を計算したあとで、ここに置く
-if is_live and odds_cname and b1.button("オッズを取得", width="stretch",
-                                         help="全券種の締切前のオッズを取ります（数ページ取るので少し時間がかかります）"):
+# 開いたレースは全券種のオッズを自動で取る（締切前は「取り直す」で最新に。終わったレースは最終オッズ）
+refetch = is_live and odds_cname and b1.button("オッズを取り直す", width="stretch",
+                                              help="締切前のオッズは動くので、買う直前に押してください")
+if odds_cname and (refetch or rid not in odds_store):
     try:
-        with st.spinner("オッズを取得しています…"):
-            odds_store[rid] = (fetch_odds(odds_cname), time.strftime("%H:%M"))
+        with st.spinner("全券種のオッズを取得しています…"):
+            odds_store[rid] = (fetch_odds(odds_cname), time.strftime("%H:%M") if is_live else "最終")
     except Exception as e:
         st.warning(f"オッズを取得できませんでした: {e}")
 race_odds, odds_time = odds_store.get(rid, ({}, None))
-if not race_odds and not is_live and "odds" in g:
+if not race_odds and "odds" in g:  # 取れなかったときは出馬表の単勝オッズだけ使う
     race_odds = {"単勝": {str(n): o for n, o in zip(g["num"], g["odds"]) if pd.notna(o)}}
 
 status = []
@@ -177,10 +179,10 @@ if g["body_weight"].notna().all():
     status.append(ui.pill("馬体重 発表済み", "ok"))
 else:
     status.append(ui.pill("馬体重 発表前", "wait"))
-if odds_time:
-    status.append(ui.pill(f"全券種オッズ {odds_time} 時点", "info"))
-elif is_live:
-    status.append(ui.pill("単勝オッズのみ（出馬表の時点）", "wait"))
+if odds_time == "最終":
+    status.append(ui.pill("最終オッズ", "info"))
+elif odds_time:
+    status.append(ui.pill(f"オッズ {odds_time} 時点", "info"))
 if race_done:
     status.append(ui.pill("結果確定", "info"))
 st.markdown(" ".join(status), unsafe_allow_html=True)
@@ -218,9 +220,7 @@ if race_odds:
     else:
         st.caption(f"期待値 {ev_line:.2f} 以上（確率 {min_prob:.1%} 以上）の買い目はありません。見送りも選択肢です。")
     st.caption("期待値 = 予想の確率 × オッズ。1を超えるほど、確率のわりに配当が高い買い目です。"
-               + ("オッズは締切まで動くので、直前に取り直してください。" if is_live else "終わったレースは単勝の最終オッズで計算しています。"))
-if is_live and not odds_time:
-    st.caption("いまは出馬表に出ている単勝オッズだけで計算しています。「オッズを取得」を押すと、全券種で妙味のある買い目を探します。")
+               + ("オッズは締切まで動くので、買う直前に「オッズを取り直す」を押してください。" if is_live else "終わったレースは最終オッズで計算しています。"))
 
 # ---- Discord ----
 if webhook_url():
