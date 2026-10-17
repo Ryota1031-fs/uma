@@ -10,7 +10,7 @@ from pathlib import Path
 
 import requests
 
-REPO_ZIP = "https://github.com/Ryota1031-fs/keiba/archive/refs/heads/main.zip"
+REPO_ZIP = "https://github.com/Ryota1031-fs/uma/archive/refs/heads/main.zip"
 ROOT = Path(__file__).resolve().parent.parent
 KEEP = {"data", ".git", ".venv"}
 
@@ -22,7 +22,7 @@ def update(root: Path = ROOT) -> list[str]:
     changed = []
     with zipfile.ZipFile(io.BytesIO(resp.content)) as z:
         for info in z.infolist():
-            # zip の中は "keiba-main/..." の形なので先頭のフォルダを外す
+            # zip の中は "uma-main/..." の形なので先頭のフォルダを外す
             rel = Path(*Path(info.filename).parts[1:])
             if info.is_dir() or not rel.parts or rel.parts[0] in KEEP:
                 continue
